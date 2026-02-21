@@ -13,7 +13,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 db = SQLAlchemy(app)
 
 # --- Gemini API Configuration ---
-GENAI_API_KEY = "AIzaSyBgzyDldtWY4oCIBbnO8iCvahs5kZlwnCc" 
+GENAI_API_KEY = "xxxxxxxxxxxxxxxxxx" 
 genai.configure(api_key=GENAI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash') # Fixed model version for stability
 
@@ -225,4 +225,5 @@ def chat_page():
 if __name__ == '__main__':
     if not os.path.exists('uploads'): os.makedirs('uploads')
     with app.app_context(): db.create_all()
+
     app.run(debug=True)
