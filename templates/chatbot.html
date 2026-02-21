@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Recruitment Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --ai-bg: #f0f2f5;
+            --user-bg: #4f46e5;
+            --glass: rgba(255, 255, 255, 0.9);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-container {
+            max-width: 900px;
+            margin: auto;
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+        }
+
+        .chat-header {
+            background: white;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #chat-box {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            background: #ffffff;
+        }
+
+        .msg-bubble {
+            max-width: 80%;
+            padding: 1rem 1.5rem;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            position: relative;
+        }
+
+        .ai-msg {
+            align-self: flex-start;
+            background: var(--ai-bg);
+            color: #1e293b;
+            border-bottom-left-radius: 5px;
+        }
+
+        .user-msg {
+            align-self: flex-end;
+            background: var(--user-bg);
+            color: white;
+            border-bottom-right-radius: 5px;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Markdown Styling inside AI Response */
+        .ai-msg h1, .ai-msg h2, .ai-msg h3 { font-size: 1.1rem; font-weight: 700; margin-top: 0.5rem; color: #4f46e5; }
+        .ai-msg ul { padding-left: 1.2rem; margin-bottom: 0; }
+
+        .input-area {
+            padding: 1.5rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .custom-input {
+            border-radius: 50px;
+            padding: 0.8rem 1.5rem;
+            border: 2px solid #f1f5f9;
+            transition: 0.3s;
+        }
+
+        .custom-input:focus {
+            border-color: #4f46e5;
+            box-shadow: none;
+        }
+
+        .btn-send {
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--user-bg);
+            border: none;
+            transition: 0.3s;
+        }
+
+        .btn-send:hover { transform: scale(1.1); background: #4338ca; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="d-flex align-items-center">
+                <div class="bg-primary text-white p-2 rounded-circle me-3">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                    <h5 class="mb-0 fw-bold">AI Recruitment Assistant</h5>
+                    <small class="text-success">● Online | Intelligence Active</small>
+                </div>
+            </div>
+            <a href="/candidates" class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
+
+        <div id="chat-box">
+            <div class="msg-bubble ai-msg">
+                Hello <b>{{ name }}</b>! I am your AI assistant. You can ask me about applicants, job matches, or hiring stats. How can I help you today?
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-group">
+                <input type="text" id="user-input" class="form-control custom-input" placeholder="Type your query (e.g., Summary of recently applied candidates?)" onkeypress="handleKeyPress(event)">
+                <button class="btn btn-primary btn-send ms-2" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane text-white"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+
+    function sendMessage() {
+        let input = document.getElementById('user-input');
+        let box = document.getElementById('chat-box');
+        let msg = input.value.trim();
+        
+        if(!msg) return;
+
+        // User Message
+        box.innerHTML += `<div class="msg-bubble user-msg">${msg}</div>`;
+        input.value = '';
+        box.scrollTop = box.scrollHeight;
+
+        // AI Thinking Placeholder
+        let thinkingId = 'thinking-' + Date.now();
+        box.innerHTML += `<div class="msg-bubble ai-msg" id="${thinkingId}"><i class="fas fa-spinner fa-spin me-2"></i> AI is thinking...</div>`;
+        box.scrollTop = box.scrollHeight;
+
+        fetch('/chatbot_query', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: msg})
+        })
+        .then(res => res.json())
+        .then(data => {
+            let thinkingMsg = document.getElementById(thinkingId);
+            // Render Markdown for Headings and Lists
+            thinkingMsg.innerHTML = marked.parse(data.reply);
+            box.scrollTop = box.scrollHeight;
+        })
+        .catch(err => {
+            document.getElementById(thinkingId).innerHTML = "Sorry, I encountered an error. Please check your API connection.";
+        });
+    }
+</script>
+
+</body>
+</html>
