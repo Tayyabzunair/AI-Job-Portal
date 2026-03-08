@@ -13,7 +13,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 db = SQLAlchemy(app)
 
 # --- Gemini API Configuration ---
-GENAI_API_KEY = "xxxxxxxxxxxxxxxxxx" 
+GENAI_API_KEY = "##################################" # Replace with your actual API key
 genai.configure(api_key=GENAI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash') # Fixed model version for stability
 
@@ -202,20 +202,56 @@ def finalize_application():
 @app.route('/chatbot_query', methods=['POST'])
 def chatbot_query():
     user_msg = request.json.get('message', '')
-    # ... baki data gathering logic ...
     
-    # Proper formatting instruction
+    if not user_msg:
+        return jsonify({'reply': 'Please send a message.'})
+    
+    # --- Build data context from database ---
+    jobs = Job.query.all()
+    resumes = Resume.query.all()
+
+    jobs_info = "\n".join([
+        f"- Job ID {j.id}: {j.title} | Location: {j.location} | Skills: {j.skills} | Salary: {j.salary} | Deadline: {j.deadline}"
+        for j in jobs
+    ]) or "No jobs posted yet."
+
+    candidates_info = "\n".join([
+        f"- {r.name} | Email: {r.email} | Applied for Job ID {r.job_id} | Skills: {r.skills} | Score: {r.match_score}% | Status: {r.status}"
+        for r in resumes
+    ]) or "No applications yet."
+
+    data_context = f"""
+    === POSTED JOBS ===
+    {jobs_info}
+
+    === CANDIDATE APPLICATIONS ===
+    {candidates_info}
+    """
+
+    # --- Build prompt and call Gemini ---
     prompt = f"""
-    Context: {data_context}
+    You are a professional Recruitment Manager AI assistant for a job portal.
+    
+    Here is the current portal data:
+    {data_context}
+    
     User Query: {user_msg}
     
     Instructions:
     1. Respond as a professional Recruitment Manager.
-    2. Use Markdown formatting: Use ## for Headings and * for bullet points.
-    3. If listing candidates, give a proper summary in points.
-    4. Speak naturally in Roman Urdu or English.
+    2. Use Markdown formatting: ## for headings, * for bullet points.
+    3. If listing candidates or jobs, give a proper summary in bullet points.
+    4. Answer in English or Roman Urdu depending on how the user writes.
+    5. Be concise and helpful.
     """
-    # ... baki Gemini call logic ...
+
+    try:
+        response = model.generate_content(prompt)
+        reply = response.text
+    except Exception as e:
+        reply = f"Sorry, I couldn't connect to the AI. Error: {str(e)}"
+
+    return jsonify({'reply': reply})
 
 @app.route('/chat')
 def chat_page(): 
@@ -225,5 +261,4 @@ def chat_page():
 if __name__ == '__main__':
     if not os.path.exists('uploads'): os.makedirs('uploads')
     with app.app_context(): db.create_all()
-
     app.run(debug=True)
